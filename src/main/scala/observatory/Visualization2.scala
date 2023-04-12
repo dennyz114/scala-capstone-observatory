@@ -9,6 +9,8 @@ import com.sksamuel.scrimage.metadata.ImageMetadata
   */
 object Visualization2 extends Visualization2Interface:
 
+  val width = 256
+  val height = 256
   /**
     * @param point (x, y) coordinates of a point in the grid cell
     * @param d00 Top-left value
@@ -25,7 +27,11 @@ object Visualization2 extends Visualization2Interface:
     d10: Temperature,
     d11: Temperature
   ): Temperature =
-    ???
+    val x = point.x
+    val y = point.y
+    val x1 = 1 - point.x
+    val y1 = 1 - point.y
+    d00 * x1 * y1 + d10 * x * y1 + d01 * x1 * y + d11 * x * y
 
   /**
     * @param grid Grid to visualize
@@ -38,5 +44,20 @@ object Visualization2 extends Visualization2Interface:
     colors: Iterable[(Temperature, Color)],
     tile: Tile
   ): ImmutableImage =
-    ???
+    val locations = Interaction.getTilesWithLocation(tile)
+    val pointsAndColors = locations
+      .map(v => {
+        val loc = v._3
+        val lat = loc.lat.toInt
+        val lon = loc.lon.toInt
+        (v._1, v._2, bilinearInterpolation(
+          CellPoint(loc.lon - lon, loc.lat - lat),
+          grid(GridLocation(lat, lon)),
+          grid(GridLocation(lat + 1, lon)),
+          grid(GridLocation(lat, lon + 1)),
+          grid(GridLocation(lat + 1, lon + 1))
+        ))
+      }).map(v => (v._1, v._2, Visualization.interpolateColor(colors, v._3)))
+      .toArray
 
+    ImmutableImage.wrapPixels(width, height, pointsAndColors.map(x => Pixel(x._1, x._2, x._3.red, x._3.green, x._3.blue, 255)), ImageMetadata.empty)
